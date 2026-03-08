@@ -1,4 +1,5 @@
 import type { CVData } from '../types/cv';
+import { GLOBAL_TECH_KEYWORDS } from '../data/techKeywords';
 
 const splitTokens = (value: string) =>
   value
@@ -17,7 +18,8 @@ export const generateATSKeywords = (cvData: CVData): string => {
     ...cvData.skills.softSkills,
     ...cvData.experiences.map((exp) => `${exp.role} ${exp.description}`),
     ...cvData.projects.map((project) => `${project.technologies} ${project.description}`),
-    ...cvData.certifications.map((cert) => cert.name)
+    ...cvData.certifications.map((cert) => cert.name),
+    ...GLOBAL_TECH_KEYWORDS
   ];
 
   const keywords = new Set(entries.flatMap(splitTokens));
