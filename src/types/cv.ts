@@ -8,6 +8,7 @@ export interface PersonalInfo {
   linkedin: string;
   github: string;
   location: string;
+  photo: string;
 }
 
 export interface Experience {
@@ -69,7 +70,8 @@ export const initialCVData: CVData = {
     phone: '',
     linkedin: '',
     github: '',
-    location: ''
+    location: '',
+    photo: ''
   },
   professionalSummary: '',
   experiences: [

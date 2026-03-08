@@ -39,6 +39,16 @@ function App() {
 
   const atsKeywords = useMemo(() => generateATSKeywords(cvData), [cvData]);
 
+  const handlePhotoUpload = (file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      updatePersonalInfo('photo', result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const updatePersonalInfo = (field: keyof CVData['personalInfo'], value: string) => {
     setCvData((prev) => ({
       ...prev,
@@ -117,6 +127,27 @@ function App() {
 
       <main className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="space-y-4">
+          <SectionCard title="Foto">
+            <div className="space-y-2">
+              <input
+                className="input"
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                onChange={(e) => handlePhotoUpload(e.target.files?.[0] ?? null)}
+              />
+              <p className="text-xs text-slate-500">Upload opcional para exibir no preview do currículo.</p>
+              {cvData.personalInfo.photo && (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-red-600"
+                  onClick={() => updatePersonalInfo('photo', '')}
+                >
+                  Remover foto
+                </button>
+              )}
+            </div>
+          </SectionCard>
+
           <SectionCard title="Dados pessoais">
             <div className="grid gap-3 md:grid-cols-2">
               <input className="input" placeholder="Nome" value={cvData.personalInfo.fullName} onChange={(e) => updatePersonalInfo('fullName', e.target.value)} />
@@ -329,14 +360,23 @@ function App() {
             ref={previewRef}
             className="relative mx-auto min-h-[1123px] w-full max-w-[794px] rounded-xl border border-slate-200 bg-white p-8 text-slate-900 shadow-sm"
           >
-            <header className="border-b border-slate-200 pb-4">
-              <h2 className="text-3xl font-bold tracking-tight">{cvData.personalInfo.fullName || 'Seu Nome'}</h2>
-              <p className="mt-1 text-base font-medium text-slate-700">{cvData.personalInfo.professionalTitle || 'Título profissional'}</p>
-              <p className="mt-3 text-xs text-slate-600">
-                {[cvData.personalInfo.email, cvData.personalInfo.phone, cvData.personalInfo.linkedin, cvData.personalInfo.github, cvData.personalInfo.location]
-                  .filter(Boolean)
-                  .join(' | ')}
-              </p>
+            <header className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+              <div>
+                <h2 className="text-3xl font-bold tracking-tight">{cvData.personalInfo.fullName || 'Seu Nome'}</h2>
+                <p className="mt-1 text-base font-medium text-slate-700">{cvData.personalInfo.professionalTitle || 'Título profissional'}</p>
+                <p className="mt-3 text-xs text-slate-600">
+                  {[cvData.personalInfo.email, cvData.personalInfo.phone, cvData.personalInfo.linkedin, cvData.personalInfo.github, cvData.personalInfo.location]
+                    .filter(Boolean)
+                    .join(' | ')}
+                </p>
+              </div>
+              {cvData.personalInfo.photo && (
+                <img
+                  src={cvData.personalInfo.photo}
+                  alt="Foto profissional"
+                  className="h-24 w-24 rounded-lg border border-slate-200 object-cover"
+                />
+              )}
             </header>
 
             <div className="space-y-5 pt-5 text-sm leading-relaxed">

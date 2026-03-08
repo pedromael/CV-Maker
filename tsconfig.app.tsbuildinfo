@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/sectioncard.tsx","./src/data/suggestions.ts","./src/data/techkeywords.ts","./src/types/cv.ts","./src/utils/ats.ts","./src/utils/exporters.ts"],"version":"5.9.3"}
