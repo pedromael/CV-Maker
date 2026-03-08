@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SectionCard } from './components/SectionCard';
 import { getExperienceSuggestions, getSkillSuggestions, getSummarySuggestions } from './data/suggestions';
 import { generateATSKeywords } from './utils/ats';
@@ -23,9 +23,75 @@ const categoryLabels: Record<SkillCategory, string> = {
 
 const levels = ['Básico', 'Intermediário', 'Avançado', 'Fluente', 'Nativo'];
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const normalizeCVData = (value: unknown): CVData => {
+  if (!isRecord(value)) return initialCVData;
+
+  const personalInfo = isRecord(value.personalInfo) ? value.personalInfo : {};
+  const skills = isRecord(value.skills) ? value.skills : {};
+
+  const normalizeArrayItems = <T extends object>(arrayValue: unknown, template: T): T[] => {
+    if (!Array.isArray(arrayValue)) return [template];
+    const normalized = arrayValue
+      .filter(isRecord)
+      .map((item) => ({ ...template, ...(item as Partial<T>) }));
+
+    return normalized.length > 0 ? normalized : [template];
+  };
+
+  const normalizeSkills = (arrayValue: unknown): string[] => {
+    if (!Array.isArray(arrayValue)) return [];
+    return arrayValue.filter((item): item is string => typeof item === 'string');
+  };
+
+  return {
+    personalInfo: {
+      ...initialCVData.personalInfo,
+      ...personalInfo
+    },
+    professionalSummary:
+      typeof value.professionalSummary === 'string' ? value.professionalSummary : initialCVData.professionalSummary,
+    experiences: normalizeArrayItems(value.experiences, initialCVData.experiences[0]),
+    education: normalizeArrayItems(value.education, initialCVData.education[0]),
+    skills: {
+      languages: normalizeSkills(skills.languages),
+      frameworks: normalizeSkills(skills.frameworks),
+      tools: normalizeSkills(skills.tools),
+      softSkills: normalizeSkills(skills.softSkills)
+    },
+    languages: normalizeArrayItems(value.languages, initialCVData.languages[0]),
+    projects: normalizeArrayItems(value.projects, initialCVData.projects[0]),
+    certifications: normalizeArrayItems(value.certifications, initialCVData.certifications[0])
+  };
+};
+
 function App() {
   const [cvData, setCvData] = useState<CVData>(initialCVData);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const jsonImportInputRef = useRef<HTMLInputElement>(null);
+  const previewWrapperRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(0.5);
+
+  const updatePreviewScale = useCallback(() => {
+    const wrapper = previewWrapperRef.current;
+    if (!wrapper) return;
+    const availableWidth = wrapper.clientWidth;
+    const availableHeight = wrapper.clientHeight;
+    const scaleX = availableWidth / 794;
+    const scaleY = availableHeight / 1123;
+    const scale = Math.min(scaleX, scaleY, 1);
+    setPreviewScale(scale);
+  }, []);
+
+  useEffect(() => {
+    updatePreviewScale();
+    const wrapper = previewWrapperRef.current;
+    if (!wrapper) return;
+    const ro = new ResizeObserver(updatePreviewScale);
+    ro.observe(wrapper);
+    return () => ro.disconnect();
+  }, [updatePreviewScale]);
 
   const summarySuggestions = useMemo(
     () => getSummarySuggestions(cvData.personalInfo.professionalTitle),
@@ -102,7 +168,20 @@ function App() {
   const safeList = <T,>(items: T[], isValid: (item: T) => boolean) => items.filter(isValid);
 
   const exportPDF = async () => {
-    await exportToPDF(previewRef.current);
+    await exportToPDF(cvData);
+  };
+
+  const importFromJSON = async (file: File | null) => {
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      const parsed = JSON.parse(content) as unknown;
+      const normalized = normalizeCVData(parsed);
+      setCvData(normalized);
+    } catch {
+      window.alert('Não foi possível importar o JSON. Verifique o arquivo e tente novamente.');
+    }
   };
 
   return (
@@ -113,6 +192,23 @@ function App() {
           <p className="text-sm text-slate-600">Crie um currículo profissional com alta compatibilidade ATS.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <input
+            ref={jsonImportInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={async (e) => {
+              await importFromJSON(e.target.files?.[0] ?? null);
+              e.currentTarget.value = '';
+            }}
+          />
+          <button
+            onClick={() => jsonImportInputRef.current?.click()}
+            className="btn-secondary"
+            type="button"
+          >
+            Importar JSON
+          </button>
           <button onClick={exportPDF} className="btn-primary" type="button">
             Exportar PDF
           </button>
@@ -125,8 +221,8 @@ function App() {
         </div>
       </header>
 
-      <main className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="space-y-4">
+      <main className="grid gap-6 lg:h-[calc(100vh-140px)] lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="space-y-4 min-h-0 lg:overflow-y-auto lg:pr-2">
           <SectionCard title="Foto">
             <div className="space-y-2">
               <input
@@ -355,93 +451,77 @@ function App() {
           </SectionCard>
         </section>
 
-        <section>
-          <div
-            ref={previewRef}
-            className="relative mx-auto min-h-[1123px] w-full max-w-[794px] rounded-xl border border-slate-200 bg-white p-8 text-slate-900 shadow-sm"
-          >
-            <header className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
-              <div>
-                <h2 className="text-3xl font-bold tracking-tight">{cvData.personalInfo.fullName || 'Seu Nome'}</h2>
-                <p className="mt-1 text-base font-medium text-slate-700">{cvData.personalInfo.professionalTitle || 'Título profissional'}</p>
-                <p className="mt-3 text-xs text-slate-600">
-                  {[cvData.personalInfo.email, cvData.personalInfo.phone, cvData.personalInfo.linkedin, cvData.personalInfo.github, cvData.personalInfo.location]
-                    .filter(Boolean)
-                    .join(' | ')}
-                </p>
+        <section className="min-h-0 flex flex-col">
+          <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 overflow-hidden">
+            <div
+              className="cv-preview relative rounded-xl border border-slate-200 shadow-sm"
+              style={{
+                transform: `scale(${previewScale})`,
+                transformOrigin: 'top left',
+              }}
+            >
+            {/* Header */}
+            <p className="cv-name">{cvData.personalInfo.fullName || 'Nome Completo'}</p>
+            <p className="cv-title">{cvData.personalInfo.professionalTitle || 'Título profissional'}</p>
+            <p className="cv-contact">
+              {[cvData.personalInfo.email, cvData.personalInfo.phone, cvData.personalInfo.linkedin, cvData.personalInfo.github, cvData.personalInfo.location]
+                .filter(Boolean)
+                .join(' | ')}
+            </p>
+
+            {/* Resumo */}
+            <p className="cv-section-title">RESUMO</p>
+            <p>{cvData.professionalSummary || '-'}</p>
+
+            {/* Experiência */}
+            <p className="cv-section-title">EXPERIÊNCIA</p>
+            {safeList(cvData.experiences, (item) => Boolean(item.company || item.role || item.description)).map((experience, index) => (
+              <div className="cv-entry" key={index}>
+                <p className="cv-bold">{experience.role || '-'} | {experience.company || '-'}</p>
+                <p className="cv-small">{experience.startDate || '-'} - {experience.endDate || 'Atual'}</p>
+                <p>{experience.description || '-'}</p>
               </div>
-              {cvData.personalInfo.photo && (
-                <img
-                  src={cvData.personalInfo.photo}
-                  alt="Foto profissional"
-                  className="h-24 w-24 rounded-lg border border-slate-200 object-cover"
-                />
-              )}
-            </header>
+            ))}
 
-            <div className="space-y-5 pt-5 text-sm leading-relaxed">
-              <article>
-                <h3 className="section-title">Resumo</h3>
-                <p>{cvData.professionalSummary || '-'}</p>
-              </article>
+            {/* Educação */}
+            <p className="cv-section-title">EDUCAÇÃO</p>
+            {safeList(cvData.education, (item) => Boolean(item.institution || item.course)).map((education, index) => (
+              <div className="cv-entry" key={index}>
+                <p className="cv-bold">{education.course || '-'} | {education.institution || '-'}</p>
+                <p className="cv-small">{education.startDate || '-'} - {education.endDate || '-'}</p>
+              </div>
+            ))}
 
-              <article>
-                <h3 className="section-title">Experiência</h3>
-                {safeList(cvData.experiences, (item) => Boolean(item.company || item.role || item.description)).map((experience, index) => (
-                  <div className="mb-3" key={`${experience.company}-${index}`}>
-                    <p className="font-semibold">{experience.role || '-'} | {experience.company || '-'}</p>
-                    <p className="text-xs text-slate-600">{experience.startDate || '-'} - {experience.endDate || 'Atual'}</p>
-                    <p>{experience.description || '-'}</p>
-                  </div>
-                ))}
-              </article>
+            {/* Skills */}
+            <p className="cv-section-title">SKILLS</p>
+            <p>{[...cvData.skills.languages, ...cvData.skills.frameworks, ...cvData.skills.tools, ...cvData.skills.softSkills].join(' • ') || '-'}</p>
 
-              <article>
-                <h3 className="section-title">Educação</h3>
-                {safeList(cvData.education, (item) => Boolean(item.institution || item.course)).map((education, index) => (
-                  <div className="mb-3" key={`${education.institution}-${index}`}>
-                    <p className="font-semibold">{education.course || '-'} | {education.institution || '-'}</p>
-                    <p className="text-xs text-slate-600">{education.startDate || '-'} - {education.endDate || '-'}</p>
-                  </div>
-                ))}
-              </article>
+            {/* Projetos */}
+            <p className="cv-section-title">PROJETOS</p>
+            {safeList(cvData.projects, (item) => Boolean(item.name || item.description)).map((project, index) => (
+              <div className="cv-entry" key={index}>
+                <p className="cv-bold">{project.name || '-'}</p>
+                <p>{project.description || '-'}</p>
+                <p className="cv-small">Tecnologias: {project.technologies || '-'}</p>
+                <p className="cv-small">{project.link || '-'}</p>
+              </div>
+            ))}
 
-              <article>
-                <h3 className="section-title">Skills</h3>
-                <p>
-                  {[...cvData.skills.languages, ...cvData.skills.frameworks, ...cvData.skills.tools, ...cvData.skills.softSkills].join(' • ') || '-'}
-                </p>
-              </article>
+            {/* Certificações */}
+            <p className="cv-section-title">CERTIFICAÇÕES</p>
+            {safeList(cvData.certifications, (item) => Boolean(item.name || item.organization)).map((certification, index) => (
+              <p key={index}>{certification.name || '-'} | {certification.organization || '-'} ({certification.year || '-'})</p>
+            ))}
 
-              <article>
-                <h3 className="section-title">Projetos</h3>
-                {safeList(cvData.projects, (item) => Boolean(item.name || item.description)).map((project, index) => (
-                  <div className="mb-3" key={`${project.name}-${index}`}>
-                    <p className="font-semibold">{project.name || '-'}</p>
-                    <p>{project.description || '-'}</p>
-                    <p className="text-xs text-slate-600">{project.technologies || '-'}</p>
-                    <p className="text-xs text-slate-600">{project.link || '-'}</p>
-                  </div>
-                ))}
-              </article>
+            {/* Idiomas */}
+            <p className="cv-section-title">IDIOMAS</p>
+            {safeList(cvData.languages, (item) => Boolean(item.name || item.level)).map((language, index) => (
+              <p key={index}>{language.name || '-'} | {language.level || '-'}</p>
+            ))}
 
-              <article>
-                <h3 className="section-title">Certificações</h3>
-                {safeList(cvData.certifications, (item) => Boolean(item.name || item.organization)).map((certification, index) => (
-                  <p key={`${certification.name}-${index}`}>{certification.name || '-'} | {certification.organization || '-'} ({certification.year || '-'})</p>
-                ))}
-              </article>
-
-              <article>
-                <h3 className="section-title">Idiomas</h3>
-                {safeList(cvData.languages, (item) => Boolean(item.name || item.level)).map((language, index) => (
-                  <p key={`${language.name}-${index}`}>{language.name || '-'} | {language.level || '-'}</p>
-                ))}
-              </article>
-            </div>
-
-            <div className="ats-keywords" aria-hidden="true">
-              {atsKeywords}
+              <div className="ats-keywords" aria-hidden="true">
+                {atsKeywords}
+              </div>
             </div>
           </div>
         </section>

@@ -1,4 +1,3 @@
-import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
@@ -15,25 +14,114 @@ export const exportToJSON = (cvData: CVData) => {
   saveAs(blob, 'curriculo.json');
 };
 
-export const exportToPDF = async (previewElement: HTMLElement | null) => {
-  if (!previewElement) return;
+export const exportToPDF = async (cvData: CVData) => {
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const marginX = 14;
+  const topY = 16;
+  const bottomY = pageHeight - 14;
+  const maxWidth = pageWidth - marginX * 2;
+  const lineHeight = 5.4;
+  let y = topY;
 
-  const canvas = await html2canvas(previewElement, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: '#ffffff'
+  const ensureSpace = (needed = lineHeight) => {
+    if (y + needed > bottomY) {
+      pdf.addPage();
+      y = topY;
+    }
+  };
+
+  const writeText = (text: string, options?: { bold?: boolean; size?: number; gapAfter?: number }) => {
+    const value = text.trim();
+    if (!value) return;
+
+    pdf.setFont('helvetica', options?.bold ? 'bold' : 'normal');
+    pdf.setFontSize(options?.size ?? 11);
+
+    const lines = pdf.splitTextToSize(value, maxWidth) as string[];
+    lines.forEach((line) => {
+      ensureSpace();
+      pdf.text(line, marginX, y);
+      y += lineHeight;
+    });
+
+    y += options?.gapAfter ?? 0;
+  };
+
+  const writeSectionTitle = (title: string) => {
+    ensureSpace(10);
+    y += 1;
+    writeText(title.toUpperCase(), { bold: true, size: 12, gapAfter: 1.5 });
+  };
+
+  writeText(cvData.personalInfo.fullName || 'Nome Completo', { bold: true, size: 18, gapAfter: 1 });
+  writeText(cvData.personalInfo.professionalTitle || 'Título profissional', { size: 12, gapAfter: 1 });
+  writeText(
+    [
+      cvData.personalInfo.email,
+      cvData.personalInfo.phone,
+      cvData.personalInfo.linkedin,
+      cvData.personalInfo.github,
+      cvData.personalInfo.location
+    ]
+      .filter(Boolean)
+      .join(' | '),
+    { size: 10, gapAfter: 2 }
+  );
+
+  writeSectionTitle('Resumo');
+  writeText(cvData.professionalSummary || '-', { gapAfter: 2 });
+
+  writeSectionTitle('Experiência');
+  cvData.experiences.forEach((experience) => {
+    if (!experience.company && !experience.role && !experience.description) return;
+    writeText(`${experience.role || '-'} | ${experience.company || '-'}`, { bold: true });
+    writeText(`${experience.startDate || '-'} - ${experience.endDate || 'Atual'}`, { size: 10 });
+    writeText(experience.description || '-', { gapAfter: 1.5 });
   });
 
-  const imageData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageWidth = 210;
-  const pageHeight = 297;
+  writeSectionTitle('Educação');
+  cvData.education.forEach((education) => {
+    if (!education.institution && !education.course) return;
+    writeText(`${education.course || '-'} | ${education.institution || '-'}`, { bold: true });
+    writeText(`${education.startDate || '-'} - ${education.endDate || '-'}`, { size: 10, gapAfter: 1.5 });
+  });
 
-  const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-  const imageWidth = canvas.width * ratio;
-  const imageHeight = canvas.height * ratio;
+  writeSectionTitle('Skills');
+  writeText(
+    [
+      ...cvData.skills.languages,
+      ...cvData.skills.frameworks,
+      ...cvData.skills.tools,
+      ...cvData.skills.softSkills
+    ].join(' • ') || '-',
+    { gapAfter: 2 }
+  );
 
-  pdf.addImage(imageData, 'PNG', (pageWidth - imageWidth) / 2, 10, imageWidth, imageHeight);
+  writeSectionTitle('Projetos');
+  cvData.projects.forEach((project) => {
+    if (!project.name && !project.description) return;
+    writeText(project.name || '-', { bold: true });
+    writeText(project.description || '-');
+    writeText(`Tecnologias: ${project.technologies || '-'}`, { size: 10 });
+    writeText(project.link || '-', { size: 10, gapAfter: 1.5 });
+  });
+
+  writeSectionTitle('Certificações');
+  cvData.certifications.forEach((certification) => {
+    if (!certification.name && !certification.organization) return;
+    writeText(`${certification.name || '-'} | ${certification.organization || '-'} (${certification.year || '-'})`, {
+      gapAfter: 1
+    });
+  });
+
+  writeSectionTitle('Idiomas');
+  cvData.languages.forEach((language) => {
+    if (!language.name && !language.level) return;
+    writeText(`${language.name || '-'} | ${language.level || '-'}`, { gapAfter: 1 });
+  });
+
   pdf.save('curriculo.pdf');
 };
 

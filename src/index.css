@@ -25,6 +25,60 @@ body {
   @apply rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50;
 }
 
+/* -- Preview classes matching PDF output -- */
+
+.cv-preview {
+  font-family: Helvetica, Arial, sans-serif;
+  /* A4 ratio: 210x297mm mapped to 794x1123px */
+  width: 794px;
+  min-height: 1123px;
+  padding: 60px 53px;   /* ≈ 16mm top / 14mm sides */
+  font-size: 11pt;
+  line-height: 1.45;
+  color: #1e293b;
+  background: #fff;
+}
+
+.cv-preview .cv-name {
+  font-size: 18pt;
+  font-weight: 700;
+  margin: 0;
+}
+
+.cv-preview .cv-title {
+  font-size: 12pt;
+  margin: 4px 0 0;
+}
+
+.cv-preview .cv-contact {
+  font-size: 10pt;
+  color: #475569;
+  margin: 10px 0 0;
+}
+
+.cv-preview .cv-section-title {
+  font-size: 12pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #334155;
+  margin: 16px 0 6px;
+  padding-top: 4px;
+}
+
+.cv-preview .cv-bold {
+  font-weight: 700;
+}
+
+.cv-preview .cv-small {
+  font-size: 10pt;
+  color: #475569;
+}
+
+.cv-preview .cv-entry {
+  margin-bottom: 8px;
+}
+
 .section-title {
   @apply mb-1 text-sm font-bold uppercase tracking-[0.08em] text-slate-700;
 }
