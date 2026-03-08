@@ -8,11 +8,12 @@ import type {
   Certification,
   Education,
   Experience,
+  FormatSettings,
   Language,
   Project,
   SkillCategory
 } from './types/cv';
-import { initialCVData } from './types/cv';
+import { defaultFormatSettings, initialCVData } from './types/cv';
 
 const categoryLabels: Record<SkillCategory, string> = {
   languages: 'Linguagens',
@@ -72,6 +73,23 @@ function App() {
   const jsonImportInputRef = useRef<HTMLInputElement>(null);
   const previewWrapperRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(0.5);
+  const [showPreview, setShowPreview] = useState(true);
+  const [formatSettings, setFormatSettings] = useState<FormatSettings>(defaultFormatSettings);
+  const [showFormatPanel, setShowFormatPanel] = useState(false);
+
+  const MM_TO_PX = 794 / 210;
+  const previewCssVars = {
+    '--cv-font-size': `${formatSettings.fontSize}pt`,
+    '--cv-line-height': `${formatSettings.lineHeight}`,
+    '--cv-section-gap': `${formatSettings.sectionGap * MM_TO_PX}px`,
+    '--cv-entry-gap': `${formatSettings.entryGap * MM_TO_PX}px`,
+    '--cv-margin-x': `${formatSettings.marginX * MM_TO_PX}px`,
+    '--cv-margin-y': `${formatSettings.marginY * MM_TO_PX}px`,
+  } as React.CSSProperties;
+
+  const updateFormat = (key: keyof FormatSettings, value: number) => {
+    setFormatSettings((prev) => ({ ...prev, [key]: value }));
+  };
 
   const updatePreviewScale = useCallback(() => {
     const wrapper = previewWrapperRef.current;
@@ -168,7 +186,7 @@ function App() {
   const safeList = <T,>(items: T[], isValid: (item: T) => boolean) => items.filter(isValid);
 
   const exportPDF = async () => {
-    await exportToPDF(cvData);
+    await exportToPDF(cvData, formatSettings);
   };
 
   const importFromJSON = async (file: File | null) => {
@@ -218,10 +236,57 @@ function App() {
           <button onClick={() => exportToJSON(cvData)} className="btn-secondary" type="button">
             Exportar JSON
           </button>
+          <button onClick={() => setShowPreview((v) => !v)} className="btn-secondary" type="button">
+            {showPreview ? 'Fechar Preview' : 'Abrir Preview'}
+          </button>
+          <button onClick={() => setShowFormatPanel((v) => !v)} className="btn-secondary" type="button">
+            Formatação
+          </button>
         </div>
       </header>
 
-      <main className="grid gap-6 lg:h-[calc(100vh-140px)] lg:grid-cols-[1.05fr_0.95fr]">
+      {showFormatPanel && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-800">Ajustes de Formatação</h3>
+            <button onClick={() => setFormatSettings(defaultFormatSettings)} className="text-xs text-slate-500 hover:text-slate-800" type="button">Restaurar padrão</button>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-slate-600">Fonte (pt)</span>
+              <input type="range" min="8" max="14" step="0.5" value={formatSettings.fontSize} onChange={(e) => updateFormat('fontSize', Number(e.target.value))} className="w-full" />
+              <span className="block text-center text-xs text-slate-500">{formatSettings.fontSize}</span>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-slate-600">Entrelinhas</span>
+              <input type="range" min="1.0" max="2.0" step="0.05" value={formatSettings.lineHeight} onChange={(e) => updateFormat('lineHeight', Number(e.target.value))} className="w-full" />
+              <span className="block text-center text-xs text-slate-500">{formatSettings.lineHeight.toFixed(2)}</span>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-slate-600">Espaço seção (mm)</span>
+              <input type="range" min="1" max="10" step="0.5" value={formatSettings.sectionGap} onChange={(e) => updateFormat('sectionGap', Number(e.target.value))} className="w-full" />
+              <span className="block text-center text-xs text-slate-500">{formatSettings.sectionGap}</span>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-slate-600">Espaço entre itens (mm)</span>
+              <input type="range" min="0.5" max="6" step="0.5" value={formatSettings.entryGap} onChange={(e) => updateFormat('entryGap', Number(e.target.value))} className="w-full" />
+              <span className="block text-center text-xs text-slate-500">{formatSettings.entryGap}</span>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-slate-600">Margem lateral (mm)</span>
+              <input type="range" min="8" max="25" step="1" value={formatSettings.marginX} onChange={(e) => updateFormat('marginX', Number(e.target.value))} className="w-full" />
+              <span className="block text-center text-xs text-slate-500">{formatSettings.marginX}</span>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-slate-600">Margem vertical (mm)</span>
+              <input type="range" min="8" max="25" step="1" value={formatSettings.marginY} onChange={(e) => updateFormat('marginY', Number(e.target.value))} className="w-full" />
+              <span className="block text-center text-xs text-slate-500">{formatSettings.marginY}</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      <main className={`grid gap-6 lg:h-[calc(100vh-140px)] ${showPreview ? 'lg:grid-cols-[1.05fr_0.95fr]' : 'lg:grid-cols-1'}`}>
         <section className="space-y-4 min-h-0 lg:overflow-y-auto lg:pr-2">
           <SectionCard title="Foto">
             <div className="space-y-2">
@@ -451,13 +516,14 @@ function App() {
           </SectionCard>
         </section>
 
-        <section className="min-h-0 flex flex-col">
+        {showPreview && <section className="min-h-0 flex flex-col">
           <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 overflow-hidden">
             <div
               className="cv-preview relative rounded-xl border border-slate-200 shadow-sm"
               style={{
                 transform: `scale(${previewScale})`,
                 transformOrigin: 'top left',
+                ...previewCssVars,
               }}
             >
             {/* Header */}
@@ -524,7 +590,7 @@ function App() {
               </div>
             </div>
           </div>
-        </section>
+        </section>}
       </main>
     </div>
   );

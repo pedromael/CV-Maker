@@ -2,6 +2,8 @@ import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import type { CVData } from '../types/cv';
+import type { FormatSettings } from '../types/cv';
+import { defaultFormatSettings } from '../types/cv';
 
 const sectionTitle = (title: string) =>
   new Paragraph({
@@ -14,15 +16,17 @@ export const exportToJSON = (cvData: CVData) => {
   saveAs(blob, 'curriculo.json');
 };
 
-export const exportToPDF = async (cvData: CVData) => {
+export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultFormatSettings) => {
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const marginX = 14;
-  const topY = 16;
-  const bottomY = pageHeight - 14;
+  const marginX = fmt.marginX;
+  const topY = fmt.marginY;
+  const bottomY = pageHeight - fmt.marginY;
   const maxWidth = pageWidth - marginX * 2;
-  const lineHeight = 5.4;
+  // Convert line-height ratio to mm: fontSize pt → mm, then multiply by ratio
+  const fontSizeMm = fmt.fontSize * 0.3528;
+  const lineHeight = fontSizeMm * fmt.lineHeight;
   let y = topY;
 
   const ensureSpace = (needed = lineHeight) => {
@@ -37,7 +41,7 @@ export const exportToPDF = async (cvData: CVData) => {
     if (!value) return;
 
     pdf.setFont('helvetica', options?.bold ? 'bold' : 'normal');
-    pdf.setFontSize(options?.size ?? 11);
+    pdf.setFontSize(options?.size ?? fmt.fontSize);
 
     const lines = pdf.splitTextToSize(value, maxWidth) as string[];
     lines.forEach((line) => {
@@ -51,12 +55,12 @@ export const exportToPDF = async (cvData: CVData) => {
 
   const writeSectionTitle = (title: string) => {
     ensureSpace(10);
-    y += 1;
-    writeText(title.toUpperCase(), { bold: true, size: 12, gapAfter: 1.5 });
+    y += fmt.sectionGap * 0.6;
+    writeText(title.toUpperCase(), { bold: true, size: Math.round(fmt.fontSize * 1.091), gapAfter: fmt.sectionGap * 0.4 });
   };
 
-  writeText(cvData.personalInfo.fullName || 'Nome Completo', { bold: true, size: 18, gapAfter: 1 });
-  writeText(cvData.personalInfo.professionalTitle || 'Título profissional', { size: 12, gapAfter: 1 });
+  writeText(cvData.personalInfo.fullName || 'Nome Completo', { bold: true, size: Math.round(fmt.fontSize * 1.636), gapAfter: 1 });
+  writeText(cvData.personalInfo.professionalTitle || 'Título profissional', { size: Math.round(fmt.fontSize * 1.091), gapAfter: 1 });
   writeText(
     [
       cvData.personalInfo.email,
@@ -67,25 +71,25 @@ export const exportToPDF = async (cvData: CVData) => {
     ]
       .filter(Boolean)
       .join(' | '),
-    { size: 10, gapAfter: 2 }
+    { size: Math.round(fmt.fontSize * 0.909), gapAfter: 2 }
   );
 
   writeSectionTitle('Resumo');
-  writeText(cvData.professionalSummary || '-', { gapAfter: 2 });
+  writeText(cvData.professionalSummary || '-', { gapAfter: fmt.entryGap });
 
   writeSectionTitle('Experiência');
   cvData.experiences.forEach((experience) => {
     if (!experience.company && !experience.role && !experience.description) return;
     writeText(`${experience.role || '-'} | ${experience.company || '-'}`, { bold: true });
-    writeText(`${experience.startDate || '-'} - ${experience.endDate || 'Atual'}`, { size: 10 });
-    writeText(experience.description || '-', { gapAfter: 1.5 });
+    writeText(`${experience.startDate || '-'} - ${experience.endDate || 'Atual'}`, { size: Math.round(fmt.fontSize * 0.909) });
+    writeText(experience.description || '-', { gapAfter: fmt.entryGap });
   });
 
   writeSectionTitle('Educação');
   cvData.education.forEach((education) => {
     if (!education.institution && !education.course) return;
     writeText(`${education.course || '-'} | ${education.institution || '-'}`, { bold: true });
-    writeText(`${education.startDate || '-'} - ${education.endDate || '-'}`, { size: 10, gapAfter: 1.5 });
+    writeText(`${education.startDate || '-'} - ${education.endDate || '-'}`, { size: Math.round(fmt.fontSize * 0.909), gapAfter: fmt.entryGap });
   });
 
   writeSectionTitle('Skills');
@@ -96,7 +100,7 @@ export const exportToPDF = async (cvData: CVData) => {
       ...cvData.skills.tools,
       ...cvData.skills.softSkills
     ].join(' • ') || '-',
-    { gapAfter: 2 }
+    { gapAfter: fmt.entryGap }
   );
 
   writeSectionTitle('Projetos');
@@ -104,22 +108,22 @@ export const exportToPDF = async (cvData: CVData) => {
     if (!project.name && !project.description) return;
     writeText(project.name || '-', { bold: true });
     writeText(project.description || '-');
-    writeText(`Tecnologias: ${project.technologies || '-'}`, { size: 10 });
-    writeText(project.link || '-', { size: 10, gapAfter: 1.5 });
+    writeText(`Tecnologias: ${project.technologies || '-'}`, { size: Math.round(fmt.fontSize * 0.909) });
+    writeText(project.link || '-', { size: Math.round(fmt.fontSize * 0.909), gapAfter: fmt.entryGap });
   });
 
   writeSectionTitle('Certificações');
   cvData.certifications.forEach((certification) => {
     if (!certification.name && !certification.organization) return;
     writeText(`${certification.name || '-'} | ${certification.organization || '-'} (${certification.year || '-'})`, {
-      gapAfter: 1
+      gapAfter: fmt.entryGap * 0.5
     });
   });
 
   writeSectionTitle('Idiomas');
   cvData.languages.forEach((language) => {
     if (!language.name && !language.level) return;
-    writeText(`${language.name || '-'} | ${language.level || '-'}`, { gapAfter: 1 });
+    writeText(`${language.name || '-'} | ${language.level || '-'}`, { gapAfter: fmt.entryGap * 0.5 });
   });
 
   pdf.save('curriculo.pdf');

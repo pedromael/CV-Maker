@@ -1,5 +1,23 @@
 export type SkillCategory = 'languages' | 'frameworks' | 'tools' | 'softSkills';
 
+export interface FormatSettings {
+  fontSize: number;      // base font size in pt (default: 11)
+  lineHeight: number;    // line-height ratio (default: 1.39)
+  sectionGap: number;    // gap before section title in mm (default: 4)
+  entryGap: number;      // gap between entries in mm (default: 2)
+  marginX: number;       // horizontal margin in mm (default: 14)
+  marginY: number;       // vertical margin in mm (default: 16)
+}
+
+export const defaultFormatSettings: FormatSettings = {
+  fontSize: 11,
+  lineHeight: 1.39,
+  sectionGap: 4,
+  entryGap: 2,
+  marginX: 14,
+  marginY: 16,
+};
+
 export interface PersonalInfo {
   fullName: string;
   professionalTitle: string;
