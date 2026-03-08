@@ -3,6 +3,7 @@ import { SectionCard } from './components/SectionCard';
 import { getExperienceSuggestions, getSkillSuggestions, getSummarySuggestions } from './data/suggestions';
 import { generateATSKeywords } from './utils/ats';
 import { exportToDOCX, exportToJSON, exportToPDF } from './utils/exporters';
+import { computeLayout } from './utils/layoutEngine';
 import type {
   CVData,
   Certification,
@@ -78,14 +79,7 @@ function App() {
   const [showFormatPanel, setShowFormatPanel] = useState(false);
 
   const MM_TO_PX = 794 / 210;
-  const previewCssVars = {
-    '--cv-font-size': `${formatSettings.fontSize}pt`,
-    '--cv-line-height': `${formatSettings.lineHeight}`,
-    '--cv-section-gap': `${formatSettings.sectionGap * MM_TO_PX}px`,
-    '--cv-entry-gap': `${formatSettings.entryGap * MM_TO_PX}px`,
-    '--cv-margin-x': `${formatSettings.marginX * MM_TO_PX}px`,
-    '--cv-margin-y': `${formatSettings.marginY * MM_TO_PX}px`,
-  } as React.CSSProperties;
+  const layoutElements = useMemo(() => computeLayout(cvData, formatSettings), [cvData, formatSettings]);
 
   const updateFormat = (key: keyof FormatSettings, value: number) => {
     setFormatSettings((prev) => ({ ...prev, [key]: value }));
@@ -122,16 +116,6 @@ function App() {
   );
 
   const atsKeywords = useMemo(() => generateATSKeywords(cvData), [cvData]);
-
-  const handlePhotoUpload = (file: File | null) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      updatePersonalInfo('photo', result);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const updatePersonalInfo = (field: keyof CVData['personalInfo'], value: string) => {
     setCvData((prev) => ({
@@ -182,8 +166,6 @@ function App() {
       };
     });
   };
-
-  const safeList = <T,>(items: T[], isValid: (item: T) => boolean) => items.filter(isValid);
 
   const exportPDF = async () => {
     await exportToPDF(cvData, formatSettings);
@@ -288,27 +270,6 @@ function App() {
 
       <main className={`grid gap-6 lg:h-[calc(100vh-140px)] ${showPreview ? 'lg:grid-cols-[1.05fr_0.95fr]' : 'lg:grid-cols-1'}`}>
         <section className="space-y-4 min-h-0 lg:overflow-y-auto lg:pr-2">
-          <SectionCard title="Foto">
-            <div className="space-y-2">
-              <input
-                className="input"
-                type="file"
-                accept="image/png,image/jpeg,image/jpg,image/webp"
-                onChange={(e) => handlePhotoUpload(e.target.files?.[0] ?? null)}
-              />
-              <p className="text-xs text-slate-500">Upload opcional para exibir no preview do currículo.</p>
-              {cvData.personalInfo.photo && (
-                <button
-                  type="button"
-                  className="text-xs font-medium text-red-600"
-                  onClick={() => updatePersonalInfo('photo', '')}
-                >
-                  Remover foto
-                </button>
-              )}
-            </div>
-          </SectionCard>
-
           <SectionCard title="Dados pessoais">
             <div className="grid gap-3 md:grid-cols-2">
               <input className="input" placeholder="Nome" value={cvData.personalInfo.fullName} onChange={(e) => updatePersonalInfo('fullName', e.target.value)} />
@@ -519,73 +480,43 @@ function App() {
         {showPreview && <section className="min-h-0 flex flex-col">
           <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 overflow-hidden">
             <div
-              className="cv-preview relative rounded-xl border border-slate-200 shadow-sm"
               style={{
+                position: 'relative',
+                width: 794,
+                minHeight: 1123,
+                background: '#fff',
+                fontFamily: 'Helvetica, Arial, sans-serif',
+                color: '#1e293b',
                 transform: `scale(${previewScale})`,
                 transformOrigin: 'top left',
-                ...previewCssVars,
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
               }}
             >
-            {/* Header */}
-            <p className="cv-name">{cvData.personalInfo.fullName || 'Nome Completo'}</p>
-            <p className="cv-title">{cvData.personalInfo.professionalTitle || 'Título profissional'}</p>
-            <p className="cv-contact">
-              {[cvData.personalInfo.email, cvData.personalInfo.phone, cvData.personalInfo.linkedin, cvData.personalInfo.github, cvData.personalInfo.location]
-                .filter(Boolean)
-                .join(' | ')}
-            </p>
-
-            {/* Resumo */}
-            <p className="cv-section-title">RESUMO</p>
-            <p>{cvData.professionalSummary || '-'}</p>
-
-            {/* Experiência */}
-            <p className="cv-section-title">EXPERIÊNCIA</p>
-            {safeList(cvData.experiences, (item) => Boolean(item.company || item.role || item.description)).map((experience, index) => (
-              <div className="cv-entry" key={index}>
-                <p className="cv-bold">{experience.role || '-'} | {experience.company || '-'}</p>
-                <p className="cv-small">{experience.startDate || '-'} - {experience.endDate || 'Atual'}</p>
-                <p>{experience.description || '-'}</p>
-              </div>
-            ))}
-
-            {/* Educação */}
-            <p className="cv-section-title">EDUCAÇÃO</p>
-            {safeList(cvData.education, (item) => Boolean(item.institution || item.course)).map((education, index) => (
-              <div className="cv-entry" key={index}>
-                <p className="cv-bold">{education.course || '-'} | {education.institution || '-'}</p>
-                <p className="cv-small">{education.startDate || '-'} - {education.endDate || '-'}</p>
-              </div>
-            ))}
-
-            {/* Skills */}
-            <p className="cv-section-title">SKILLS</p>
-            <p>{[...cvData.skills.languages, ...cvData.skills.frameworks, ...cvData.skills.tools, ...cvData.skills.softSkills].join(' • ') || '-'}</p>
-
-            {/* Projetos */}
-            <p className="cv-section-title">PROJETOS</p>
-            {safeList(cvData.projects, (item) => Boolean(item.name || item.description)).map((project, index) => (
-              <div className="cv-entry" key={index}>
-                <p className="cv-bold">{project.name || '-'}</p>
-                <p>{project.description || '-'}</p>
-                <p className="cv-small">Tecnologias: {project.technologies || '-'}</p>
-                <p className="cv-small">{project.link || '-'}</p>
-              </div>
-            ))}
-
-            {/* Certificações */}
-            <p className="cv-section-title">CERTIFICAÇÕES</p>
-            {safeList(cvData.certifications, (item) => Boolean(item.name || item.organization)).map((certification, index) => (
-              <p key={index}>{certification.name || '-'} | {certification.organization || '-'} ({certification.year || '-'})</p>
-            ))}
-
-            {/* Idiomas */}
-            <p className="cv-section-title">IDIOMAS</p>
-            {safeList(cvData.languages, (item) => Boolean(item.name || item.level)).map((language, index) => (
-              <p key={index}>{language.name || '-'} | {language.level || '-'}</p>
-            ))}
-
-              <div className="ats-keywords" aria-hidden="true">
+              {layoutElements.map((el, i) => {
+                return (
+                  <span
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      left: el.x * MM_TO_PX,
+                      top: el.y * MM_TO_PX,
+                      fontSize: el.fontSize,
+                      fontWeight: el.bold ? 700 : 400,
+                      fontFamily: 'Helvetica, Arial, sans-serif',
+                      whiteSpace: 'pre',
+                      lineHeight: 1,
+                      maxWidth: el.maxWidth * MM_TO_PX,
+                      color: el.type === 'sectionTitle' ? '#334155' : undefined,
+                      letterSpacing: el.type === 'sectionTitle' ? '0.04em' : undefined,
+                    }}
+                  >
+                    {el.text}
+                  </span>
+                );
+              })}
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, fontSize: 2, color: 'white', opacity: 0.01, pointerEvents: 'none', userSelect: 'none' }} aria-hidden="true">
                 {atsKeywords}
               </div>
             </div>

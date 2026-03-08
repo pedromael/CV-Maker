@@ -46,18 +46,18 @@ body {
 .cv-preview .cv-name {
   font-size: calc(var(--cv-font-size) * 1.636);
   font-weight: 700;
-  margin: 0;
+  margin: 0 0 var(--cv-gap-1mm) 0;
 }
 
 .cv-preview .cv-title {
   font-size: calc(var(--cv-font-size) * 1.091);
-  margin: 4px 0 0;
+  margin: 0 0 var(--cv-gap-1mm) 0;
 }
 
 .cv-preview .cv-contact {
   font-size: calc(var(--cv-font-size) * 0.909);
   color: #475569;
-  margin: 10px 0 0;
+  margin: 0 0 var(--cv-gap-2mm) 0;
 }
 
 .cv-preview .cv-section-title {
@@ -66,9 +66,9 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #334155;
-  margin-top: var(--cv-section-gap);
+  margin-top: calc(var(--cv-section-gap) * 0.6);
   margin-bottom: calc(var(--cv-section-gap) * 0.4);
-  padding-top: 4px;
+  padding-top: 0;
 }
 
 .cv-preview .cv-bold {

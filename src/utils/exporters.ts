@@ -36,17 +36,19 @@ export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultF
     }
   };
 
-  const writeText = (text: string, options?: { bold?: boolean; size?: number; gapAfter?: number }) => {
+  const writeText = (text: string, options?: { bold?: boolean; size?: number; gapAfter?: number; x?: number; maxW?: number }) => {
     const value = text.trim();
     if (!value) return;
 
     pdf.setFont('helvetica', options?.bold ? 'bold' : 'normal');
     pdf.setFontSize(options?.size ?? fmt.fontSize);
 
-    const lines = pdf.splitTextToSize(value, maxWidth) as string[];
+    const x = options?.x ?? marginX;
+    const width = options?.maxW ?? maxWidth;
+    const lines = pdf.splitTextToSize(value, width) as string[];
     lines.forEach((line) => {
       ensureSpace();
-      pdf.text(line, marginX, y);
+      pdf.text(line, x, y);
       y += lineHeight;
     });
 
@@ -59,37 +61,65 @@ export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultF
     writeText(title.toUpperCase(), { bold: true, size: Math.round(fmt.fontSize * 1.091), gapAfter: fmt.sectionGap * 0.4 });
   };
 
-  writeText(cvData.personalInfo.fullName || 'Nome Completo', { bold: true, size: Math.round(fmt.fontSize * 1.636), gapAfter: 1 });
-  writeText(cvData.personalInfo.professionalTitle || 'Título profissional', { size: Math.round(fmt.fontSize * 1.091), gapAfter: 1 });
-  writeText(
-    [
-      cvData.personalInfo.email,
-      cvData.personalInfo.phone,
-      cvData.personalInfo.linkedin,
-      cvData.personalInfo.github,
-      cvData.personalInfo.location
-    ]
-      .filter(Boolean)
-      .join(' | '),
-    { size: Math.round(fmt.fontSize * 0.909), gapAfter: 2 }
-  );
+  const textOffsetX = marginX;
+  const headerMaxWidth = maxWidth;
+
+  // Name
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(Math.round(fmt.fontSize * 1.636));
+  const nameLines = pdf.splitTextToSize(cvData.personalInfo.fullName || 'Nome Completo', headerMaxWidth) as string[];
+  nameLines.forEach((line) => { pdf.text(line, textOffsetX, y); y += lineHeight; });
+  y += 1;
+
+  // Title
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(Math.round(fmt.fontSize * 1.091));
+  const titleLines = pdf.splitTextToSize(cvData.personalInfo.professionalTitle || 'Título profissional', headerMaxWidth) as string[];
+  titleLines.forEach((line) => { pdf.text(line, textOffsetX, y); y += lineHeight; });
+  y += 1;
+
+  // Contact
+  const contactText = [
+    cvData.personalInfo.email,
+    cvData.personalInfo.phone,
+    cvData.personalInfo.linkedin,
+    cvData.personalInfo.github,
+    cvData.personalInfo.location
+  ].filter(Boolean).join(' | ');
+  pdf.setFontSize(Math.round(fmt.fontSize * 0.909));
+  const contactLines = pdf.splitTextToSize(contactText, headerMaxWidth) as string[];
+  contactLines.forEach((line) => { pdf.text(line, textOffsetX, y); y += lineHeight; });
+  y += 2;
+
+  const bodyIndent = 4;
+  const bodyX = marginX + bodyIndent;
+  const bodyMaxW = maxWidth - bodyIndent;
 
   writeSectionTitle('Resumo');
-  writeText(cvData.professionalSummary || '-', { gapAfter: fmt.entryGap });
+  writeText(cvData.professionalSummary || '-', { gapAfter: fmt.entryGap, x: bodyX, maxW: bodyMaxW });
 
   writeSectionTitle('Experiência');
   cvData.experiences.forEach((experience) => {
     if (!experience.company && !experience.role && !experience.description) return;
-    writeText(`${experience.role || '-'} | ${experience.company || '-'}`, { bold: true });
-    writeText(`${experience.startDate || '-'} - ${experience.endDate || 'Atual'}`, { size: Math.round(fmt.fontSize * 0.909) });
-    writeText(experience.description || '-', { gapAfter: fmt.entryGap });
+    writeText(`${experience.role || '-'} | ${experience.company || '-'}`, { bold: true, x: bodyX, maxW: bodyMaxW });
+    writeText(`${experience.startDate || '-'} - ${experience.endDate || 'Atual'}`, { size: Math.round(fmt.fontSize * 0.909), x: bodyX, maxW: bodyMaxW });
+    writeText(experience.description || '-', { gapAfter: fmt.entryGap, x: bodyX, maxW: bodyMaxW });
   });
 
   writeSectionTitle('Educação');
   cvData.education.forEach((education) => {
     if (!education.institution && !education.course) return;
-    writeText(`${education.course || '-'} | ${education.institution || '-'}`, { bold: true });
-    writeText(`${education.startDate || '-'} - ${education.endDate || '-'}`, { size: Math.round(fmt.fontSize * 0.909), gapAfter: fmt.entryGap });
+    writeText(`${education.course || '-'} | ${education.institution || '-'}`, {
+      bold: true,
+      x: bodyX,
+      maxW: bodyMaxW
+    });
+    writeText(`${education.startDate || '-'} - ${education.endDate || '-'}`, {
+      size: Math.round(fmt.fontSize * 0.909),
+      gapAfter: fmt.entryGap,
+      x: bodyX,
+      maxW: bodyMaxW
+    });
   });
 
   writeSectionTitle('Skills');
@@ -100,30 +130,32 @@ export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultF
       ...cvData.skills.tools,
       ...cvData.skills.softSkills
     ].join(' • ') || '-',
-    { gapAfter: fmt.entryGap }
+    { gapAfter: fmt.entryGap, x: bodyX, maxW: bodyMaxW }
   );
 
   writeSectionTitle('Projetos');
   cvData.projects.forEach((project) => {
     if (!project.name && !project.description) return;
-    writeText(project.name || '-', { bold: true });
-    writeText(project.description || '-');
-    writeText(`Tecnologias: ${project.technologies || '-'}`, { size: Math.round(fmt.fontSize * 0.909) });
-    writeText(project.link || '-', { size: Math.round(fmt.fontSize * 0.909), gapAfter: fmt.entryGap });
+    writeText(project.name || '-', { bold: true, x: bodyX, maxW: bodyMaxW });
+    writeText(project.description || '-', { x: bodyX, maxW: bodyMaxW });
+    writeText(`Tecnologias: ${project.technologies || '-'}`, { size: Math.round(fmt.fontSize * 0.909), x: bodyX, maxW: bodyMaxW });
+    writeText(project.link || '-', { size: Math.round(fmt.fontSize * 0.909), gapAfter: fmt.entryGap, x: bodyX, maxW: bodyMaxW });
   });
 
   writeSectionTitle('Certificações');
   cvData.certifications.forEach((certification) => {
     if (!certification.name && !certification.organization) return;
     writeText(`${certification.name || '-'} | ${certification.organization || '-'} (${certification.year || '-'})`, {
-      gapAfter: fmt.entryGap * 0.5
+      gapAfter: fmt.entryGap * 0.5,
+      x: bodyX,
+      maxW: bodyMaxW
     });
   });
 
   writeSectionTitle('Idiomas');
   cvData.languages.forEach((language) => {
     if (!language.name && !language.level) return;
-    writeText(`${language.name || '-'} | ${language.level || '-'}`, { gapAfter: fmt.entryGap * 0.5 });
+    writeText(`${language.name || '-'} | ${language.level || '-'}`, { gapAfter: fmt.entryGap * 0.5, x: bodyX, maxW: bodyMaxW });
   });
 
   pdf.save('curriculo.pdf');
