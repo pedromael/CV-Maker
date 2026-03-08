@@ -197,7 +197,7 @@ function App() {
             }
           >
             {cvData.experiences.map((experience, index) => (
-              <div key={`${experience.company}-${index}`} className="space-y-2 rounded-lg border border-slate-200 p-3">
+              <div key={index} className="space-y-2 rounded-lg border border-slate-200 p-3">
                 <div className="grid gap-2 md:grid-cols-2">
                   <input className="input" placeholder="Empresa" value={experience.company} onChange={(e) => updateListItem<Experience>('experiences', index, { ...experience, company: e.target.value })} />
                   <input className="input" placeholder="Cargo" value={experience.role} onChange={(e) => updateListItem<Experience>('experiences', index, { ...experience, role: e.target.value })} />
@@ -237,7 +237,7 @@ function App() {
             }
           >
             {cvData.education.map((education, index) => (
-              <div key={`${education.institution}-${index}`} className="grid gap-2 rounded-lg border border-slate-200 p-3 md:grid-cols-2">
+              <div key={index} className="grid gap-2 rounded-lg border border-slate-200 p-3 md:grid-cols-2">
                 <input className="input" placeholder="Instituição" value={education.institution} onChange={(e) => updateListItem<Education>('education', index, { ...education, institution: e.target.value })} />
                 <input className="input" placeholder="Curso" value={education.course} onChange={(e) => updateListItem<Education>('education', index, { ...education, course: e.target.value })} />
                 <input className="input" placeholder="Data início" value={education.startDate} onChange={(e) => updateListItem<Education>('education', index, { ...education, startDate: e.target.value })} />
@@ -288,7 +288,7 @@ function App() {
             }
           >
             {cvData.languages.map((language, index) => (
-              <div key={`${language.name}-${index}`} className="grid gap-2 rounded-lg border border-slate-200 p-3 md:grid-cols-2">
+              <div key={index} className="grid gap-2 rounded-lg border border-slate-200 p-3 md:grid-cols-2">
                 <input className="input" placeholder="Idioma" value={language.name} onChange={(e) => updateListItem<Language>('languages', index, { ...language, name: e.target.value })} />
                 <select className="input" value={language.level} onChange={(e) => updateListItem<Language>('languages', index, { ...language, level: e.target.value })}>
                   <option value="">Nível</option>
@@ -316,7 +316,7 @@ function App() {
             }
           >
             {cvData.projects.map((project, index) => (
-              <div key={`${project.name}-${index}`} className="space-y-2 rounded-lg border border-slate-200 p-3">
+              <div key={index} className="space-y-2 rounded-lg border border-slate-200 p-3">
                 <div className="grid gap-2 md:grid-cols-2">
                   <input className="input" placeholder="Nome" value={project.name} onChange={(e) => updateListItem<Project>('projects', index, { ...project, name: e.target.value })} />
                   <input className="input" placeholder="Tecnologias" value={project.technologies} onChange={(e) => updateListItem<Project>('projects', index, { ...project, technologies: e.target.value })} />
@@ -341,7 +341,7 @@ function App() {
             }
           >
             {cvData.certifications.map((certification, index) => (
-              <div key={`${certification.name}-${index}`} className="grid gap-2 rounded-lg border border-slate-200 p-3 md:grid-cols-3">
+              <div key={index} className="grid gap-2 rounded-lg border border-slate-200 p-3 md:grid-cols-3">
                 <input className="input" placeholder="Nome" value={certification.name} onChange={(e) => updateListItem<Certification>('certifications', index, { ...certification, name: e.target.value })} />
                 <input className="input" placeholder="Organização" value={certification.organization} onChange={(e) => updateListItem<Certification>('certifications', index, { ...certification, organization: e.target.value })} />
                 <input className="input" placeholder="Ano" value={certification.year} onChange={(e) => updateListItem<Certification>('certifications', index, { ...certification, year: e.target.value })} />
