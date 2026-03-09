@@ -4,6 +4,17 @@ import { Document, Packer, Paragraph, TextRun } from 'docx';
 import type { CVData } from '../types/cv';
 import type { FormatSettings } from '../types/cv';
 import { defaultFormatSettings } from '../types/cv';
+import { generateATSKeywords } from './ats';
+
+const getFileName = (cvData: CVData, extension: string): string => {
+  const fullName = cvData.personalInfo.fullName || 'Curriculo';
+  const nameParts = fullName.trim().split(/\s+/);
+  const firstName = nameParts[0];
+  const lastName = nameParts[nameParts.length - 1];
+  const displayName = nameParts.length > 1 ? `${firstName}_${lastName}` : firstName;
+  //const sanitized = sanitizeFileName(displayName);
+  return `Curriculum_${displayName}.${extension}`;
+};
 
 const sectionTitle = (title: string) =>
   new Paragraph({
@@ -13,7 +24,7 @@ const sectionTitle = (title: string) =>
 
 export const exportToJSON = (cvData: CVData) => {
   const blob = new Blob([JSON.stringify(cvData, null, 2)], { type: 'application/json' });
-  saveAs(blob, 'curriculo.json');
+  saveAs(blob, getFileName(cvData, 'json'));
 };
 
 export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultFormatSettings) => {
@@ -158,7 +169,14 @@ export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultF
     writeText(`${language.name || '-'} | ${language.level || '-'}`, { gapAfter: fmt.entryGap * 0.5, x: bodyX, maxW: bodyMaxW });
   });
 
-  pdf.save('curriculo.pdf');
+  // Adicionar tokens ATS de forma invisível
+  const atsKeywords = generateATSKeywords(cvData);
+  pdf.setFontSize(1);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text(atsKeywords, marginX, bottomY - 0.5, { maxWidth: maxWidth, lineHeightFactor: 0.5 });
+  pdf.setTextColor(0, 0, 0);
+
+  pdf.save(getFileName(cvData, 'pdf'));
 };
 
 export const exportToDOCX = async (cvData: CVData) => {
@@ -224,12 +242,15 @@ export const exportToDOCX = async (cvData: CVData) => {
             (cert) => new Paragraph({ text: `${cert.name || '-'} - ${cert.organization || '-'} (${cert.year || '-'})` })
           ),
           sectionTitle('Idiomas'),
-          ...cvData.languages.map((language) => new Paragraph({ text: `${language.name || '-'} - ${language.level || '-'}` }))
+          ...cvData.languages.map((language) => new Paragraph({ text: `${language.name || '-'} - ${language.level || '-'}` })),
+          new Paragraph({
+            children: [new TextRun({ text: generateATSKeywords(cvData), color: 'FFFFFF', size: 2 })]
+          })
         ]
       }
     ]
   });
 
   const blob = await Packer.toBlob(document);
-  saveAs(blob, 'curriculo.docx');
+  saveAs(blob, getFileName(cvData, 'docx'));
 };
