@@ -80,10 +80,13 @@ function App() {
   const [showPreview, setShowPreview] = useState(true);
   const [formatSettings, setFormatSettings] = useState<FormatSettings>(defaultFormatSettings);
   const [showFormatPanel, setShowFormatPanel] = useState(false);
-  const [includeTechKeywords, setIncludeTechKeywords] = useState(true);
+  const [includeTechKeywords, setIncludeTechKeywords] = useState(false);
 
   const MM_TO_PX = 794 / 210;
+  const PREVIEW_PAGE_WIDTH = 794;
+  const PREVIEW_PAGE_HEIGHT = 1123;
   const layoutElements = useMemo(() => computeLayout(cvData, formatSettings), [cvData, formatSettings]);
+  const previewRenderedWidth = PREVIEW_PAGE_WIDTH * previewScale;
 
   const updateFormat = (key: keyof FormatSettings, value: number) => {
     setFormatSettings((prev) => ({ ...prev, [key]: value }));
@@ -94,11 +97,18 @@ function App() {
     if (!wrapper) return;
     const availableWidth = wrapper.clientWidth;
     const availableHeight = wrapper.clientHeight;
-    const scaleX = availableWidth / 794;
-    const scaleY = availableHeight / 1123;
+    const scaleY = availableHeight / PREVIEW_PAGE_HEIGHT;
+
+    if (isWideLayout) {
+      const scale = Math.min(scaleY, 1);
+      setPreviewScale(scale);
+      return;
+    }
+
+    const scaleX = availableWidth / PREVIEW_PAGE_WIDTH;
     const scale = Math.min(scaleX, scaleY, 1);
     setPreviewScale(scale);
-  }, []);
+  }, [isWideLayout]);
 
   useEffect(() => {
     const onResize = () => setIsWideLayout(window.innerWidth >= 1280);
@@ -303,7 +313,7 @@ function App() {
         </button>
       </div>
 
-      <main className={`grid gap-6 ${showPreview && isWideLayout ? 'xl:h-[calc(100vh-140px)] xl:grid-cols-[1.6fr_1fr]' : ''}`}>
+      <main className={`grid gap-6 ${showPreview && isWideLayout ? 'xl:h-[calc(100vh-140px)] xl:grid-cols-[minmax(0,1fr)_max-content]' : ''}`}>
         <section className="space-y-4 min-h-0 xl:overflow-y-auto xl:pr-2">
           <SectionCard title="Dados pessoais">
             <div className="grid gap-3 md:grid-cols-2">
@@ -512,13 +522,17 @@ function App() {
           </SectionCard>
         </section>
 
-        {showPreview && isWideLayout && <section className="min-h-0 flex flex-col md:min-h-[600px] xl:min-h-0">
-          <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 overflow-hidden flex items-start justify-center md:py-4 xl:py-0">
+        {showPreview && isWideLayout && <section className="min-h-0 flex w-max flex-col md:min-h-[600px] xl:min-h-0">
+          <div
+            ref={previewWrapperRef}
+            className="flex-1 min-h-0 overflow-hidden flex items-start justify-start md:py-4 xl:py-0"
+            style={{ width: previewRenderedWidth }}
+          >
             <div
               style={{
                 position: 'relative',
-                width: 794,
-                minHeight: 1123,
+                width: PREVIEW_PAGE_WIDTH,
+                minHeight: PREVIEW_PAGE_HEIGHT,
                 background: '#fff',
                 fontFamily: 'Helvetica, Arial, sans-serif',
                 color: '#1e293b',
@@ -577,8 +591,8 @@ function App() {
               <div
                 style={{
                   position: 'relative',
-                  width: 794,
-                  minHeight: 1123,
+                  width: PREVIEW_PAGE_WIDTH,
+                  minHeight: PREVIEW_PAGE_HEIGHT,
                   background: '#fff',
                   fontFamily: 'Helvetica, Arial, sans-serif',
                   color: '#1e293b',
