@@ -73,6 +73,9 @@ function App() {
   const [cvData, setCvData] = useState<CVData>(initialCVData);
   const jsonImportInputRef = useRef<HTMLInputElement>(null);
   const previewWrapperRef = useRef<HTMLDivElement>(null);
+  const [isWideLayout, setIsWideLayout] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1280 : false
+  );
   const [previewScale, setPreviewScale] = useState(0.5);
   const [showPreview, setShowPreview] = useState(true);
   const [formatSettings, setFormatSettings] = useState<FormatSettings>(defaultFormatSettings);
@@ -98,13 +101,20 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const onResize = () => setIsWideLayout(window.innerWidth >= 1280);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
     updatePreviewScale();
     const wrapper = previewWrapperRef.current;
     if (!wrapper) return;
     const ro = new ResizeObserver(updatePreviewScale);
     ro.observe(wrapper);
     return () => ro.disconnect();
-  }, [updatePreviewScale]);
+  }, [updatePreviewScale, showPreview, isWideLayout]);
 
   const summarySuggestions = useMemo(
     () => getSummarySuggestions(cvData.personalInfo.professionalTitle),
@@ -219,9 +229,6 @@ function App() {
           <button onClick={() => exportToJSON(cvData)} className="btn-secondary" type="button">
             Exportar JSON
           </button>
-          <button onClick={() => setShowPreview((v) => !v)} className="btn-secondary" type="button">
-            {showPreview ? 'Fechar Preview' : 'Abrir Preview'}
-          </button>
           <button onClick={() => setShowFormatPanel((v) => !v)} className="btn-secondary" type="button">
             Formatação
           </button>
@@ -282,7 +289,21 @@ function App() {
         </div>
       )}
 
-      <main className={`grid gap-6 ${showPreview ? 'xl:h-[calc(100vh-140px)] xl:grid-cols-[1.6fr_1fr]' : ''}`}>
+      <div className="mb-3 hidden lg:flex justify-end">
+        <button
+          onClick={() => setShowPreview((v) => !v)}
+          className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+            showPreview ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+          }`}
+          type="button"
+          aria-label={showPreview ? 'Ocultar pré-visualização do currículo' : 'Mostrar pré-visualização do currículo'}
+          title={showPreview ? 'Ocultar pré-visualização do currículo' : 'Mostrar pré-visualização do currículo'}
+        >
+          {showPreview ? '👁️ Ocultar preview' : '👁️ Mostrar preview'}
+        </button>
+      </div>
+
+      <main className={`grid gap-6 ${showPreview && isWideLayout ? 'xl:h-[calc(100vh-140px)] xl:grid-cols-[1.6fr_1fr]' : ''}`}>
         <section className="space-y-4 min-h-0 xl:overflow-y-auto xl:pr-2">
           <SectionCard title="Dados pessoais">
             <div className="grid gap-3 md:grid-cols-2">
@@ -491,7 +512,7 @@ function App() {
           </SectionCard>
         </section>
 
-        {showPreview && <section className="min-h-0 flex flex-col md:min-h-[600px] xl:min-h-0">
+        {showPreview && isWideLayout && <section className="min-h-0 flex flex-col md:min-h-[600px] xl:min-h-0">
           <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 overflow-hidden flex items-start justify-center md:py-4 xl:py-0">
             <div
               style={{
@@ -537,6 +558,79 @@ function App() {
           </div>
         </section>}
       </main>
+
+      {showPreview && !isWideLayout && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 p-3 sm:p-6">
+          <div className="mx-auto flex h-full w-full max-w-5xl flex-col rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h3 className="text-sm font-semibold text-slate-800">Pré-visualização do currículo</h3>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="btn-secondary"
+                type="button"
+                aria-label="Fechar pré-visualização"
+              >
+                Fechar preview
+              </button>
+            </div>
+            <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 overflow-hidden flex items-start justify-center p-3 sm:p-4">
+              <div
+                style={{
+                  position: 'relative',
+                  width: 794,
+                  minHeight: 1123,
+                  background: '#fff',
+                  fontFamily: 'Helvetica, Arial, sans-serif',
+                  color: '#1e293b',
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: 'top left',
+                  borderRadius: 12,
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                }}
+              >
+                {layoutElements.map((el, i) => {
+                  return (
+                    <span
+                      key={i}
+                      style={{
+                        position: 'absolute',
+                        left: el.x * MM_TO_PX,
+                        top: el.y * MM_TO_PX,
+                        fontSize: el.fontSize,
+                        fontWeight: el.bold ? 700 : 400,
+                        fontFamily: 'Helvetica, Arial, sans-serif',
+                        whiteSpace: 'pre',
+                        lineHeight: 1,
+                        maxWidth: el.maxWidth * MM_TO_PX,
+                        color: el.type === 'sectionTitle' ? '#334155' : undefined,
+                        letterSpacing: el.type === 'sectionTitle' ? '0.04em' : undefined,
+                      }}
+                    >
+                      {el.text}
+                    </span>
+                  );
+                })}
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, fontSize: 2, color: 'white', opacity: 0.01, pointerEvents: 'none', userSelect: 'none' }} aria-hidden="true">
+                  {atsKeywords}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={() => setShowPreview((v) => !v)}
+        className={`fixed bottom-4 right-4 z-40 rounded-full px-4 py-3 text-sm font-semibold shadow-lg transition lg:hidden ${
+          showPreview ? 'bg-slate-900 text-white hover:bg-slate-700' : 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50'
+        }`}
+        type="button"
+        aria-label={showPreview ? 'Fechar preview' : 'Abrir preview'}
+        title={showPreview ? 'Fechar preview' : 'Abrir preview'}
+      >
+        {showPreview ? '✕ Fechar preview' : '👁️ Preview'}
+      </button>
     </div>
   );
 }
