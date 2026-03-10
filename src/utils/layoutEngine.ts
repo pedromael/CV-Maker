@@ -114,7 +114,7 @@ export function computeLayout(cvData: CVData, fmt: FormatSettings = defaultForma
   addSectionTitle('Resumo');
   addText(cvData.professionalSummary || '-', { gapAfter: fmt.entryGap, x: bodyX, maxW: bodyMaxW });
 
-  addSectionTitle('Experiência');
+  addSectionTitle('Experiência Profissional');
   cvData.experiences.forEach((exp) => {
     if (!exp.company && !exp.role && !exp.description) return;
     addText(`${exp.role || '-'} | ${exp.company || '-'}`, { bold: true, x: bodyX, maxW: bodyMaxW });
@@ -122,7 +122,7 @@ export function computeLayout(cvData: CVData, fmt: FormatSettings = defaultForma
     addText(exp.description || '-', { gapAfter: fmt.entryGap, x: bodyX, maxW: bodyMaxW });
   });
 
-  addSectionTitle('Educação');
+  addSectionTitle('Formação Acadêmica');
   cvData.education.forEach((edu) => {
     if (!edu.institution && !edu.course) return;
     addText(`${edu.course || '-'} | ${edu.institution || '-'}`, { bold: true, x: bodyX, maxW: bodyMaxW });

@@ -6,14 +6,23 @@ import type { FormatSettings } from '../types/cv';
 import { defaultFormatSettings } from '../types/cv';
 import { generateATSKeywords } from './ats';
 
+const sanitizeFileName = (name: string): string => {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9\s-]/g, '')
+    .replace(/\s+/g, '_')
+    .trim();
+};
+
 const getFileName = (cvData: CVData, extension: string): string => {
   const fullName = cvData.personalInfo.fullName || 'Curriculo';
-  const nameParts = fullName.trim().split(/\s+/);
-  const firstName = nameParts[0];
-  const lastName = nameParts[nameParts.length - 1];
-  const displayName = nameParts.length > 1 ? `${firstName}_${lastName}` : firstName;
-  //const sanitized = sanitizeFileName(displayName);
-  return `Curriculum_${displayName}.${extension}`;
+  const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] || 'Curriculo';
+  const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+  const displayName = lastName ? `${firstName}_${lastName}` : firstName;
+  const sanitized = sanitizeFileName(displayName) || 'Curriculo';
+  return `Curriculum_${sanitized}.${extension}`;
 };
 
 const sectionTitle = (title: string) =>
@@ -27,7 +36,7 @@ export const exportToJSON = (cvData: CVData) => {
   saveAs(blob, getFileName(cvData, 'json'));
 };
 
-export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultFormatSettings) => {
+export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultFormatSettings, includeTechKeywords: boolean = true) => {
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
@@ -109,7 +118,7 @@ export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultF
   writeSectionTitle('Resumo');
   writeText(cvData.professionalSummary || '-', { gapAfter: fmt.entryGap, x: bodyX, maxW: bodyMaxW });
 
-  writeSectionTitle('Experiência');
+  writeSectionTitle('Experiência Profissional');
   cvData.experiences.forEach((experience) => {
     if (!experience.company && !experience.role && !experience.description) return;
     writeText(`${experience.role || '-'} | ${experience.company || '-'}`, { bold: true, x: bodyX, maxW: bodyMaxW });
@@ -117,7 +126,7 @@ export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultF
     writeText(experience.description || '-', { gapAfter: fmt.entryGap, x: bodyX, maxW: bodyMaxW });
   });
 
-  writeSectionTitle('Educação');
+  writeSectionTitle('Formação Acadêmica');
   cvData.education.forEach((education) => {
     if (!education.institution && !education.course) return;
     writeText(`${education.course || '-'} | ${education.institution || '-'}`, {
@@ -170,7 +179,7 @@ export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultF
   });
 
   // Adicionar tokens ATS de forma invisível
-  const atsKeywords = generateATSKeywords(cvData);
+  const atsKeywords = generateATSKeywords(cvData, includeTechKeywords);
   pdf.setFontSize(1);
   pdf.setTextColor(255, 255, 255);
   pdf.text(atsKeywords, marginX, bottomY - 0.5, { maxWidth: maxWidth, lineHeightFactor: 0.5 });
@@ -179,7 +188,7 @@ export const exportToPDF = async (cvData: CVData, fmt: FormatSettings = defaultF
   pdf.save(getFileName(cvData, 'pdf'));
 };
 
-export const exportToDOCX = async (cvData: CVData) => {
+export const exportToDOCX = async (cvData: CVData, includeTechKeywords: boolean = true) => {
   const document = new Document({
     sections: [
       {
@@ -206,7 +215,7 @@ export const exportToDOCX = async (cvData: CVData) => {
           }),
           sectionTitle('Resumo Profissional'),
           new Paragraph({ text: cvData.professionalSummary || '-' }),
-          sectionTitle('Experiência'),
+          sectionTitle('Experiência Profissional'),
           ...cvData.experiences.flatMap((exp) => [
             new Paragraph({
               children: [new TextRun({ text: `${exp.role || '-'} - ${exp.company || '-'}`, bold: true })]
@@ -214,7 +223,7 @@ export const exportToDOCX = async (cvData: CVData) => {
             new Paragraph({ text: `${exp.startDate || '-'} - ${exp.endDate || 'Atual'}` }),
             new Paragraph({ text: exp.description || '-' })
           ]),
-          sectionTitle('Educação'),
+          sectionTitle('Formação Acadêmica'),
           ...cvData.education.flatMap((edu) => [
             new Paragraph({
               children: [new TextRun({ text: `${edu.course || '-'} - ${edu.institution || '-'}`, bold: true })]
@@ -244,7 +253,7 @@ export const exportToDOCX = async (cvData: CVData) => {
           sectionTitle('Idiomas'),
           ...cvData.languages.map((language) => new Paragraph({ text: `${language.name || '-'} - ${language.level || '-'}` })),
           new Paragraph({
-            children: [new TextRun({ text: generateATSKeywords(cvData), color: 'FFFFFF', size: 2 })]
+            children: [new TextRun({ text: generateATSKeywords(cvData, includeTechKeywords), color: 'FFFFFF', size: 2 })]
           })
         ]
       }

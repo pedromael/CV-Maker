@@ -77,6 +77,7 @@ function App() {
   const [showPreview, setShowPreview] = useState(true);
   const [formatSettings, setFormatSettings] = useState<FormatSettings>(defaultFormatSettings);
   const [showFormatPanel, setShowFormatPanel] = useState(false);
+  const [includeTechKeywords, setIncludeTechKeywords] = useState(true);
 
   const MM_TO_PX = 794 / 210;
   const layoutElements = useMemo(() => computeLayout(cvData, formatSettings), [cvData, formatSettings]);
@@ -115,7 +116,7 @@ function App() {
     [cvData.personalInfo.professionalTitle]
   );
 
-  const atsKeywords = useMemo(() => generateATSKeywords(cvData), [cvData]);
+  const atsKeywords = useMemo(() => generateATSKeywords(cvData, includeTechKeywords), [cvData, includeTechKeywords]);
 
   const updatePersonalInfo = (field: keyof CVData['personalInfo'], value: string) => {
     setCvData((prev) => ({
@@ -168,7 +169,7 @@ function App() {
   };
 
   const exportPDF = async () => {
-    await exportToPDF(cvData, formatSettings);
+    await exportToPDF(cvData, formatSettings, includeTechKeywords);
   };
 
   const importFromJSON = async (file: File | null) => {
@@ -212,7 +213,7 @@ function App() {
           <button onClick={exportPDF} className="btn-primary" type="button">
             Exportar PDF
           </button>
-          <button onClick={() => exportToDOCX(cvData)} className="btn-secondary" type="button">
+          <button onClick={() => exportToDOCX(cvData, includeTechKeywords)} className="btn-secondary" type="button">
             Exportar DOCX
           </button>
           <button onClick={() => exportToJSON(cvData)} className="btn-secondary" type="button">
@@ -226,6 +227,19 @@ function App() {
           </button>
         </div>
       </header>
+
+      <div className="mb-4 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 shadow-sm">
+        <input
+          type="checkbox"
+          id="includeTechKeywords"
+          checked={includeTechKeywords}
+          onChange={(e) => setIncludeTechKeywords(e.target.checked)}
+          className="h-4 w-4 rounded border-gray-300 text-slate-900 focus:ring-2 focus:ring-slate-500"
+        />
+        <label htmlFor="includeTechKeywords" className="text-sm text-slate-700 cursor-pointer">
+          Incluir keywords técnicas globais no ATS (550+ termos)
+        </label>
+      </div>
 
       {showFormatPanel && (
         <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -268,8 +282,8 @@ function App() {
         </div>
       )}
 
-      <main className={`grid gap-6 lg:h-[calc(100vh-140px)] ${showPreview ? 'lg:grid-cols-[1.05fr_0.95fr]' : 'lg:grid-cols-1'}`}>
-        <section className="space-y-4 min-h-0 lg:overflow-y-auto lg:pr-2">
+      <main className={`grid gap-6 ${showPreview ? 'xl:h-[calc(100vh-140px)] xl:grid-cols-[1.6fr_1fr]' : ''}`}>
+        <section className="space-y-4 min-h-0 xl:overflow-y-auto xl:pr-2">
           <SectionCard title="Dados pessoais">
             <div className="grid gap-3 md:grid-cols-2">
               <input className="input" placeholder="Nome" value={cvData.personalInfo.fullName} onChange={(e) => updatePersonalInfo('fullName', e.target.value)} />
@@ -307,7 +321,7 @@ function App() {
           </SectionCard>
 
           <SectionCard
-            title="Experiência profissional"
+            title="Experiência Profissional"
             action={
               <button
                 className="btn-secondary"
@@ -351,7 +365,7 @@ function App() {
           </SectionCard>
 
           <SectionCard
-            title="Educação"
+            title="Formação Acadêmica"
             action={
               <button className="btn-secondary" type="button" onClick={() => addListItem<Education>('education', { institution: '', course: '', startDate: '', endDate: '' })}>
                 + Adicionar
@@ -477,8 +491,8 @@ function App() {
           </SectionCard>
         </section>
 
-        {showPreview && <section className="min-h-0 flex flex-col">
-          <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 overflow-hidden">
+        {showPreview && <section className="min-h-0 flex flex-col md:min-h-[600px] xl:min-h-0">
+          <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 overflow-hidden flex items-start justify-center md:py-4 xl:py-0">
             <div
               style={{
                 position: 'relative',
