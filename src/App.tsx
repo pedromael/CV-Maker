@@ -587,10 +587,13 @@ function App() {
                 Fechar preview
               </button>
             </div>
-            <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 overflow-hidden flex items-start justify-center p-3 sm:p-4">
+            <div ref={previewWrapperRef} className="w-full flex-1 min-h-0 flex items-center justify-center p-3 sm:p-4">
+              <div style={{ width: PREVIEW_PAGE_WIDTH * previewScale, height: PREVIEW_PAGE_HEIGHT * previewScale, flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
               <div
                 style={{
-                  position: 'relative',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
                   width: PREVIEW_PAGE_WIDTH,
                   minHeight: PREVIEW_PAGE_HEIGHT,
                   background: '#fff',
@@ -628,6 +631,7 @@ function App() {
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, fontSize: 2, color: 'white', opacity: 0.01, pointerEvents: 'none', userSelect: 'none' }} aria-hidden="true">
                   {atsKeywords}
                 </div>
+              </div>
               </div>
             </div>
           </div>
